@@ -3,6 +3,8 @@ import joblib
 import numpy as np
 import matplotlib.pyplot as plt
 from fpdf import FPDF
+import os
+import gdown
 
 # ------------------------
 # PAGE CONFIG
@@ -54,7 +56,7 @@ label {
     color: #cbd5e1 !important;
 }
 
-/* Predict button */
+/* Button */
 div.stButton > button {
     background-color: #3b82f6;
     color: white;
@@ -80,9 +82,18 @@ div.stDownloadButton > button {
 """, unsafe_allow_html=True)
 
 # ------------------------
-# LOAD MODEL
+# LOAD MODEL FROM GOOGLE DRIVE (SAFE FOR DEPLOY)
 # ------------------------
-model = joblib.load("dropout_model.pkl")
+
+file_id = "1CexcQtsejo5TEsP8X_WOzn794GGB8_e5"
+url = f"https://drive.google.com/uc?id={file_id}"
+output = "dropout_model.pkl"
+
+if not os.path.exists(output):
+    with st.spinner("Loading AI Model..."):
+        gdown.download(url, output, quiet=False)
+
+model = joblib.load(output)
 
 # ------------------------
 # TITLE
@@ -90,8 +101,8 @@ model = joblib.load("dropout_model.pkl")
 st.title("🎓 Student Performance Prediction System")
 
 st.write("""
-Machine Learning based system to predict student outcomes:
-Graduation, Enrollment or Dropout based on academic performance.
+Machine Learning system to predict:
+Graduation, Enrollment or Dropout
 """)
 
 st.markdown("---")
@@ -140,9 +151,6 @@ def generate_pdf(result_text, grad, enrolled, dropout):
 
     pdf.ln(10)
 
-    pdf.set_font("Arial", "B", 14)
-    pdf.cell(200, 10, "Prediction Summary", ln=True)
-
     pdf.set_font("Arial", "", 12)
     pdf.cell(200, 8, f"Result: {result_text}", ln=True)
 
@@ -183,7 +191,7 @@ if st.button("🔮 Generate Prediction"):
     sample[0][24] = first_approved
     sample[0][25] = first_grade
     sample[0][30] = second_approved
-    sample[0][31] = second_grade   # ✅ FIXED HERE
+    sample[0][31] = second_grade
 
     prediction = model.predict(sample)
     probabilities = model.predict_proba(sample)
@@ -192,25 +200,21 @@ if st.button("🔮 Generate Prediction"):
     enrolled_prob = probabilities[0][1] * 100
     graduate_prob = probabilities[0][2] * 100
 
-    # ------------------------
-    # RESULT
-    # ------------------------
     st.markdown("---")
     st.subheader("📊 Prediction Result")
 
     if prediction[0] == 0:
         result_text = "High Dropout Risk"
         st.error("⚠️ High Dropout Risk")
+
     elif prediction[0] == 1:
         result_text = "Likely to Remain Enrolled"
         st.warning("📚 Likely to Remain Enrolled")
+
     else:
         result_text = "Likely to Graduate"
         st.success("🎓 Likely to Graduate")
 
-    # ------------------------
-    # PROBABILITY
-    # ------------------------
     st.subheader("📈 Confidence Level")
 
     st.write("Graduate Probability")
@@ -225,9 +229,6 @@ if st.button("🔮 Generate Prediction"):
     st.progress(int(dropout_prob))
     st.write(f"{dropout_prob:.2f}%")
 
-    # ------------------------
-    # CHARTS
-    # ------------------------
     st.subheader("📊 Visualization")
 
     labels = ["Dropout", "Enrolled", "Graduate"]
@@ -240,10 +241,6 @@ if st.button("🔮 Generate Prediction"):
     fig2, ax2 = plt.subplots()
     ax2.pie(values, labels=labels, autopct="%1.1f%%")
     st.pyplot(fig2)
-
-    # ------------------------
-    # PDF DOWNLOAD
-    # ------------------------
 
     pdf_file = generate_pdf(result_text, graduate_prob, enrolled_prob, dropout_prob)
 
